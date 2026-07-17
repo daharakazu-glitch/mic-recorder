@@ -12,6 +12,7 @@
   #score{font-size:3.5rem;font-weight:bold;color:#16a34a;margin:8px 0;display:none;}
   #status{margin-top:14px;color:#374151;min-height:2.5em;max-width:420px;}
   .dot{color:#dc2626;font-size:2rem;animation:blink 1s infinite;}
+  #closeBtn{background:#64748b;margin-top:18px;padding:10px 28px;font-size:1rem;display:none;}
   @keyframes blink{50%{opacity:0.2;}}
 </style>
 </head>
@@ -22,11 +23,14 @@
 <div id="score"></div>
 <button id="btn">🎤 録音開始</button>
 <div id="status">ボタンを押すとマイクの許可を求められます</div>
+<button id="closeBtn">✕ 閉じてアプリに戻る</button>
 <script>
 (function(){
   var btn = document.getElementById('btn');
   var st = document.getElementById('status');
   var sc = document.getElementById('score');
+  var closeBtn = document.getElementById('closeBtn');
+  closeBtn.onclick = function(){ window.close(); };
   var payload = null;
   try {
     payload = JSON.parse(decodeURIComponent(location.hash.slice(1)));
@@ -50,6 +54,7 @@
       st.textContent = e.data.score >= 80 ? '⭐ 80点以上！マスター登録しました！' : 'もう一度挑戦できます';
       btn.textContent = '🎤 もう一度';
       btn.disabled = false;
+      closeBtn.style.display = 'inline-block';
     }
   });
 
