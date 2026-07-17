@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>発音評価レコーダー</title>
+<style>
+  body{font-family:sans-serif;background:#f0fdf4;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:90vh;margin:0;padding:16px;text-align:center;}
+  .sentence{background:white;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin:12px 0;font-size:1.05rem;max-width:420px;}
+  button{background:#dc2626;color:white;border:none;border-radius:9999px;padding:14px 34px;font-size:1.1rem;font-weight:bold;cursor:pointer;}
+  button:disabled{background:#9ca3af;}
+  #score{font-size:3.5rem;font-weight:bold;color:#16a34a;margin:8px 0;display:none;}
+  #status{margin-top:14px;color:#374151;min-height:2.5em;max-width:420px;}
+  .dot{color:#dc2626;font-size:2rem;animation:blink 1s infinite;}
+  @keyframes blink{50%{opacity:0.2;}}
+</style>
+</head>
+<body>
+<h3>発音評価</h3>
+<div>次の英文を読み上げてください：</div>
+<div class="sentence" id="target"></div>
+<div id="score"></div>
+<button id="btn">🎤 録音開始</button>
+<div id="status">ボタンを押すとマイクの許可を求められます</div>
+<script>
+(function(){
+  var btn = document.getElementById('btn');
+  var st = document.getElementById('status');
+  var sc = document.getElementById('score');
+  var payload = null;
+  try {
+    payload = JSON.parse(decodeURIComponent(location.hash.slice(1)));
+  } catch (e) {}
+  if (!payload || !payload.s) {
+    btn.disabled = true;
+    st.textContent = 'このページは学習アプリの「録音評価」ボタンから開いてください。';
+    return;
+  }
+  var SENTENCE = payload.s, TOKEN = payload.t || '';
+  document.getElementById('target').textContent = SENTENCE;
+  document.title = '発音評価レコーダー'; // 英文をタイトル等に残さない
+
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { btn.disabled = true; st.textContent = 'このブラウザは音声認識に対応していません。ChromeまたはEdgeをお使いください。'; return; }
+
+  window.addEventListener('message', function(e){
+    if (e.data && e.data.type === 'vintageScore' && e.data.token === TOKEN) {
+      sc.textContent = e.data.score + '点';
+      sc.style.display = 'block';
+      st.textContent = e.data.score >= 80 ? '⭐ 80点以上！マスター登録しました！' : 'もう一度挑戦できます';
+      btn.textContent = '🎤 もう一度';
+      btn.disabled = false;
+    }
+  });
+
+  btn.onclick = function(){
+    var r = new SR();
+    r.lang = 'en-US';
+    r.onstart = function(){ btn.disabled = true; sc.style.display = 'none'; st.innerHTML = 'マイクに向かって読んでください <div class="dot">●</div>'; };
+    r.onresult = function(e){
+      var tr = e.results[0][0].transcript;
+      st.textContent = '採点中...';
+      try {
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage({ type: 'vintageTranscript', token: TOKEN, transcript: tr }, '*');
+        } else {
+          st.textContent = '元の画面が見つかりません。学習アプリを開いたままお試しください。';
+          btn.disabled = false;
+        }
+      } catch (err) {
+        st.textContent = '通信エラー: ' + err.message;
+        btn.disabled = false;
+      }
+    };
+    r.onerror = function(e){
+      btn.disabled = false;
+      if (e.error === 'not-allowed') {
+        st.textContent = 'マイクがブロックされています。アドレスバーのマイクアイコンから「許可」を選んでください。';
+      } else if (e.error === 'no-speech') {
+        st.textContent = '音声が聞き取れませんでした。もう一度お試しください。';
+      } else {
+        st.textContent = 'エラー: ' + e.error;
+      }
+    };
+    r.start();
+  };
+})();
+</script>
+</body>
+</html>
